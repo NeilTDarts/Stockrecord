@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Stock Record — Prototype</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f5f7; --panel:#ffffff; --ink:#1c2128; --muted:#6b7280;
+    --line:#e2e5ea; --brand:#2f6f4f; --brand-ink:#ffffff;
+    --low:#b3261e; --low-bg:#fdecea; --ok:#2f6f4f; --ok-bg:#e9f5ee;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); -webkit-tap-highlight-color:transparent;
+  }
+  header{
+    background:var(--brand); color:var(--brand-ink); padding:18px 16px 14px;
+    position:sticky; top:0; z-index:10;
+  }
+  header h1{margin:0 0 2px; font-size:19px; font-weight:700;}
+  header p{margin:0; font-size:13px; opacity:.85;}
+  nav{display:flex; gap:6px; padding:10px 12px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:66px; z-index:9;}
+  nav button{
+    flex:1; padding:10px 6px; border:none; border-radius:8px; background:transparent;
+    color:var(--muted); font-size:14px; font-weight:600; cursor:pointer;
+  }
+  nav button.active{background:var(--ok-bg); color:var(--brand);}
+  main{padding:14px 12px 60px; max-width:720px; margin:0 auto;}
+  .notice{
+    background:#fff7e6; border:1px solid #f0d98c; color:#6b5300; border-radius:10px;
+    padding:12px 14px; font-size:13px; line-height:1.5; margin-bottom:14px;
+  }
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px;}
+  .row{display:flex; align-items:center; gap:10px; cursor:pointer;}
+  .row .info{flex:1; min-width:0;}
+  .code{font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.02em;}
+  .desc{font-size:14.5px; font-weight:600; margin-top:1px;}
+  .pack{font-size:12px; color:var(--muted); margin-top:1px;}
+  .stockbox{text-align:right; min-width:78px;}
+  .stockval{font-size:20px; font-weight:800; line-height:1;}
+  .status{display:inline-block; margin-top:4px; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:99px; text-transform:uppercase; letter-spacing:.03em;}
+  .status.ok{background:var(--ok-bg); color:var(--ok);}
+  .status.low{background:var(--low-bg); color:var(--low);}
+  .search{width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; margin-bottom:12px; background:var(--panel);}
+  .scanpanel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center;}
+  #reader{width:100%; max-width:420px; margin:12px auto 0; border-radius:10px; overflow:hidden;}
+  .btn{border:none; border-radius:10px; padding:12px 16px; font-size:14.5px; font-weight:700; cursor:pointer;}
+  .btn-primary{background:var(--brand); color:#fff;}
+  .btn-secondary{background:var(--bg); color:var(--ink); border:1px solid var(--line);}
+  .btn-block{width:100%;}
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,20,20,.45); display:flex; align-items:flex-end;
+    justify-content:center; z-index:50;
+  }
+  .overlay.hidden{display:none;}
+  .sheet{background:var(--panel); width:100%; max-width:460px; border-radius:16px 16px 0 0; padding:18px 18px 24px;}
+  .sheet h2{margin:0 0 2px; font-size:16px;}
+  .sheet .code{margin-bottom:10px; display:block;}
+  .qtyrow{display:flex; align-items:center; justify-content:center; gap:16px; margin:16px 0;}
+  .qtyrow button{width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:var(--bg); font-size:20px; font-weight:700; cursor:pointer;}
+  .qtyrow .qty{font-size:26px; font-weight:800; min-width:40px; text-align:center;}
+  .actionrow{display:flex; gap:10px; margin-top:6px;}
+  .actionrow .btn{flex:1;}
+  .cancel{display:block; text-align:center; margin-top:12px; color:var(--muted); font-size:13.5px; background:none; border:none; width:100%; padding:6px;}
+  .editnum{width:56px; padding:6px; border:1px solid var(--line); border-radius:6px; font-size:13px; text-align:center;}
+  .labels-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px;}
+  .label{border:1px dashed #b9bec7; border-radius:8px; padding:10px; text-align:center; background:#fff;}
+  .label .qrcanvas{display:flex; justify-content:center; margin-bottom:6px;}
+  .label .lcode{font-size:11px; font-weight:800; color:var(--muted);}
+  .label .ldesc{font-size:11.5px; font-weight:600; margin-top:2px; line-height:1.25;}
+  .namewrap{margin:14px 0 4px;}
+  .namewrap label{font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em;}
+  .nameinput{width:100%; padding:10px 11px; border:1px solid var(--line); border-radius:8px; font-size:15px; margin-top:5px;}
+  .namechips{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .namechip{padding:6px 12px; border-radius:99px; background:var(--bg); border:1px solid var(--line); font-size:13px; cursor:pointer;}
+  .namechip.picked{background:var(--ok-bg); border-color:var(--ok); color:var(--ok); font-weight:700;}
+  .logentry{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13.5px;}
+  .logentry .ltop{display:flex; justify-content:space-between; font-weight:700;}
+  .logentry .lwho{color:var(--brand);}
+  .logentry .lwhat{color:var(--muted); margin-top:2px;}
+  .logentry .ltime{color:var(--muted); font-size:11.5px; margin-top:3px;}
+  .logentry.act-take .lwho{color:var(--low);}
+  .empty{color:var(--muted); font-size:13.5px; text-align:center; padding:20px 0;}
+  @media print{
+    header, nav, .notice, .printbar{display:none !important;}
+    body{background:#fff;}
+    .labels-grid{grid-template-columns:repeat(3,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Stock Record — prototype</h1>
+  <p>Scan-to-update stock, independent of any supplier system</p>
+</header>
+
+<nav>
+  <button class="active" data-view="dashboard">Stock</button>
+  <button data-view="scan">Scan</button>
+  <button data-view="log">Activity</button>
+  <button data-view="labels">Print labels</button>
+</nav>
+
+<main>
+
+  <div class="notice" id="syncNotice" style="display:none;"></div>
+
+  <div id="view-dashboard">
+    <input class="search" id="search" placeholder="Filter by code or name…">
+
+    <button class="btn btn-secondary btn-block" id="seedBtn" style="margin-bottom:10px; display:none;">Load starter list (30 items from your screenshots)</button>
+    <button class="btn btn-secondary btn-block" id="toggleAddForm" style="margin-bottom:10px;">+ Add product</button>
+    <div class="card" id="addForm" style="display:none;">
+      <div class="namewrap" style="margin-top:0;">
+        <label for="newCode">Item code</label>
+        <div style="display:flex; gap:8px; margin-top:5px;">
+          <input class="nameinput" id="newCode" placeholder="e.g. WH500" style="margin-top:0;">
+          <button type="button" class="btn btn-secondary" id="scanCodeBtn" style="white-space:nowrap;">Scan</button>
+        </div>
+        <div id="addReader" style="display:none; max-width:320px; margin:10px auto 0; border-radius:10px; overflow:hidden;"></div>
+        <p id="addScanMsg" style="font-size:12.5px; color:var(--muted); margin:6px 0 0;"></p>
+      </div>
+      <div class="namewrap">
+        <label for="newDesc">Description</label>
+        <input class="nameinput" id="newDesc" placeholder="e.g. Blue Roll 2ply 250m">
+      </div>
+      <div class="namewrap">
+        <label for="newPack">Pack size</label>
+        <input class="nameinput" id="newPack" type="number" min="1" value="1">
+      </div>
+      <div class="namewrap">
+        <label for="newThreshold">Low-stock limit</label>
+        <input class="nameinput" id="newThreshold" type="number" min="0" value="1">
+      </div>
+      <div class="actionrow" style="margin-top:12px;">
+        <button class="btn btn-secondary" onclick="cancelAddItem()">Cancel</button>
+        <button class="btn btn-primary" onclick="addItem()">Add product</button>
+      </div>
+    </div>
+
+    <div id="itemList"></div>
+  </div>
+
+  <div id="view-scan" style="display:none;">
+    <div class="scanpanel">
+      <p style="margin:0 0 10px; font-size:13.5px; color:var(--muted);">
+        Scan a shelf label's QR code to open that item and log a Take or a Replenish.
+      </p>
+      <button class="btn btn-primary btn-block" id="startScan">Start camera</button>
+      <div id="reader"></div>
+      <p id="scanMsg" style="font-size:13px; color:var(--muted); margin-top:8px;"></p>
+    </div>
+  </div>
+
+  <div id="view-log" style="display:none;">
+    <input class="search" id="logSearch" placeholder="Filter by name or item…">
+    <div id="logList"></div>
+  </div>
+
+  <div id="view-labels" style="display:none;">
+    <div class="printbar" style="margin-bottom:12px;">
+      <button class="btn btn-secondary" onclick="window.print()">Print this page</button>
+    </div>
+    <div class="labels-grid" id="labelsGrid"></div>
+  </div>
+
+</main>
+
+<div class="overlay hidden" id="modal">
+  <div class="sheet">
+    <span class="code" id="mCode"></span>
+    <h2 id="mDesc"></h2>
+    <p style="margin:2px 0 0; font-size:13px; color:var(--muted);">
+      Currently <strong id="mStock"></strong> in stock ·
+      low-stock limit <input class="editnum" id="mThreshold" type="number" min="0">
+    </p>
+
+    <div class="qtyrow">
+      <button onclick="changeQty(-1)">–</button>
+      <span class="qty" id="mQty">1</span>
+      <button onclick="changeQty(1)">+</button>
+    </div>
+
+    <div class="namewrap">
+      <label for="mName">Who's doing this?</label>
+      <input class="nameinput" id="mName" placeholder="Type a name…" autocomplete="off">
+      <div class="namechips" id="mNameChips"></div>
+    </div>
+
+    <div class="actionrow">
+      <button class="btn btn-secondary" onclick="applyAction('take')">Take</button>
+      <button class="btn btn-primary" onclick="applyAction('replenish')">Replenish</button>
+    </div>
+    <button class="cancel" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// PASTE YOUR APPS SCRIPT WEB APP URL HERE after you deploy stock-record-backend.gs
+// It looks like: https://script.google.com/macros/s/AKfycb.../exec
+// ============================================================================
+const API_URL = "https://script.google.com/macros/s/AKfycbysun0qbtCB2w3bEF4zqKe7k-hogQJ3juP0jikvT5Oqfw9Ob509YDm0cBnE_uttfjtf/exec";
+
+// One-time starter list, taken from the screenshots you shared — only used if the
+// sheet is still empty, via the "Load starter list" button. After that, the sheet
+// is the source of truth, not this array.
+const STARTER_ITEMS = [
+  {code:"WH1344", desc:"k-One Duo Toilet Tissue White 2ply", pack:12},
+  {code:"WH281",  desc:"Hygiene Roll Blue 2ply 25cm/10in", pack:18},
+  {code:"WH901A", desc:"k-One Toilet Tissue White 2ply", pack:12},
+  {code:"WH887",  desc:"C-Fold Paper Hand Towel Blue 1ply", pack:2880},
+  {code:"WH339",  desc:"k-Max Centrefeed Roll Blue 2ply 150m", pack:6},
+  {code:"WH1371", desc:"k-One LX Orchid Foaming 750ml", pack:4},
+  {code:"EN002",  desc:"Black Refuse Sack Heavy Duty 90L", pack:200},
+  {code:"CH078",  desc:"Heavy Duty Anti-Bac Wiper Cloth Blue", pack:25},
+  {code:"CH077",  desc:"Heavy Duty Anti-Bac Wiper Cloth Red", pack:25},
+  {code:"CH080",  desc:"Heavy Duty Anti-Bac Wiper Cloth Yellow", pack:25},
+  {code:"CH100A", desc:"Extra Heavy Scouring Pad 15x11.5cm", pack:10},
+  {code:"CH125",  desc:"Microfibre Cleaning Cloth Blue 40x40cm", pack:10},
+  {code:"WH138",  desc:"Clean Fast Heavy Duty Washroom Cleaner 5L", pack:1},
+  {code:"CH028",  desc:"Odour Neutraliser 5L Bulk Refill", pack:1},
+  {code:"WH258A", desc:"Toilet Cleaner & Descaler 1L Bottle", pack:6},
+  {code:"CH018",  desc:"Pledge Wood Polish Natural 400ml", pack:12},
+  {code:"CH044",  desc:"Protect Disinfectant Cleaner 5L", pack:1},
+  {code:"CH276",  desc:"Select Luxury Furniture Polish", pack:12},
+  {code:"CH008",  desc:"Clear Window, Glass & S.Steel Cleaner", pack:6},
+  {code:"CH816",  desc:"Kilrock Rhino Drain Unblocker Non Acid", pack:1},
+  {code:"WH963",  desc:"Shades Air Freshener 400ml Cranberry", pack:12},
+  {code:"CT495",  desc:"k-Pro Lemon Washing Up Liquid 1L", pack:6},
+  {code:"PP070",  desc:"Vinyl Gloves Powder Free Blue Medium", pack:100},
+  {code:"PP071",  desc:"Vinyl Gloves Powder Free Blue Large", pack:100},
+  {code:"PP019",  desc:"Nitrile Glove Powder Free Blue Med", pack:100},
+  {code:"PP047",  desc:"Nitrile Glove Powder Free Blue Large", pack:100},
+  {code:"FC067",  desc:"Dust Sweeper Mop Kit 60cm/24in Blue", pack:1},
+  {code:"FC038",  desc:"Universal Socket Mop Yarn 200g Red", pack:1},
+  {code:"FC036",  desc:"Universal Socket Mop Yarn 200g Blue", pack:1},
+  {code:"FC1110", desc:"Deluxe Mop Bucket with Wringer 12L Red", pack:1},
+  {code:"FC1113", desc:"Deluxe Mop Bucket with Wringer 12L Blue", pack:1},
+];
+
+let ITEMS = [];       // populated from the sheet once it syncs
+const state = {};     // {code: {stock, threshold}}
+let LOG = [];
+let recentNames = [];
+let syncing = false;
+
+let current = null;
+let qty = 1;
+let scanner = null;
+
+function apiConfigured(){
+  return API_URL && API_URL.indexOf("PASTE_YOUR") === -1;
+}
+
+// Every call — reads AND writes — goes through the same request style: a plain web address with
+// the details in the link itself, loaded as a <script> tag (JSONP) rather than fetch(). Tested
+// directly against the real deployment: Apps Script doesn't reliably deliver POST requests to
+// doPost for a web app opened this way, so this sticks to what's actually confirmed to work.
+function apiCall(action, params){
+  return new Promise((resolve, reject) => {
+    const cbName = "ssCb" + Date.now() + Math.floor(Math.random() * 100000);
+    const script = document.createElement("script");
+    const timer = setTimeout(() => { cleanup(); reject(new Error("Timed out waiting for a reply")); }, 15000);
+    function cleanup(){ delete window[cbName]; script.remove(); clearTimeout(timer); }
+    window[cbName] = (data) => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error("Couldn't load the sheet")); };
+    const qs = new URLSearchParams(Object.assign({}, params, { action: action || "state", callback: cbName, _: Date.now() }));
+    script.src = API_URL + (API_URL.includes("?") ? "&" : "?") + qs.toString();
+    document.body.appendChild(script);
+  });
+}
+
+function apiGet(){
+  return apiCall("state");
+}
+
+function apiPost(body){
+  const { action } = body;
+  const params = Object.assign({}, body);
+  delete params.action;
+  return apiCall(action, params);
+}
+
+function applyServerState(data){
+  ITEMS = (data.items || []).map(i => ({code:i.code, desc:i.desc, pack:i.pack}));
+  Object.keys(state).forEach(k => delete state[k]);
+  (data.items || []).forEach(i => { state[i.code] = {stock:i.stock, threshold:i.threshold}; });
+
+  LOG = (data.log || []).map(e => ({...e, ts: new Date(e.ts)}));
+  recentNames = [];
+  LOG.forEach(e => { if(!recentNames.includes(e.name)) recentNames.push(e.name); });
+  recentNames = recentNames.slice(0, 6);
+
+  renderList(document.getElementById("search").value);
+  renderLog(document.getElementById("logSearch").value);
+  const grid = document.getElementById("labelsGrid");
+  if(grid){ grid.dataset.built = ""; grid.innerHTML = ""; }
+}
+
+function setSyncNotice(text, isError){
+  const el = document.getElementById("syncNotice");
+  if(!el) return;
+  if(!text){ el.style.display = "none"; return; }
+  el.style.display = "block";
+  el.textContent = text;
+  el.style.background = isError ? "var(--low-bg)" : "#fff7e6";
+  el.style.color = isError ? "var(--low)" : "#6b5300";
+  el.style.borderColor = isError ? "var(--low)" : "#f0d98c";
+}
+
+async function loadState(){
+  if(!apiConfigured()){
+    setSyncNotice("Not connected to your Google Sheet yet — see the setup steps, then paste the web app URL into API_URL near the top of this file.", true);
+    return;
+  }
+  setSyncNotice("Syncing with your stock sheet…", false);
+  try{
+    const data = await apiGet();
+    applyServerState(data);
+    setSyncNotice(ITEMS.length ? "" : "Sheet's connected but empty — use \"Load starter list\" below to seed it, or add products one at a time.", false);
+    document.getElementById("seedBtn").style.display = ITEMS.length ? "none" : "block";
+  }catch(err){
+    setSyncNotice("Couldn't reach the stock sheet (check your connection) — nothing's been changed. " + err.message, true);
+  }
+}
+
+async function seedStarterItems(){
+  if(!confirm(`Add all ${STARTER_ITEMS.length} starter items to the sheet?`)) return;
+  setSyncNotice("Loading starter list — this can take a minute for " + STARTER_ITEMS.length + " items…", false);
+  for(const i of STARTER_ITEMS){
+    try{ await apiPost({action:"addItem", code:i.code, desc:i.desc, pack:i.pack, threshold:1}); }
+    catch(err){ console.error(err); }
+  }
+  await loadState();
+}
+
+function renderNameChips(){
+  const wrap = document.getElementById("mNameChips");
+  const input = document.getElementById("mName");
+  wrap.innerHTML = "";
+  recentNames.forEach(n => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "namechip" + (input.value === n ? " picked" : "");
+    chip.textContent = n;
+    chip.onclick = () => { input.value = n; renderNameChips(); };
+    wrap.appendChild(chip);
+  });
+}
+
+function renderList(filter=""){
+  const list = document.getElementById("itemList");
+  const f = filter.trim().toLowerCase();
+  list.innerHTML = "";
+  ITEMS.filter(i => !f || i.code.toLowerCase().includes(f) || i.desc.toLowerCase().includes(f))
+    .forEach(i => {
+      const s = state[i.code];
+      const low = s.stock <= s.threshold;
+      const el = document.createElement("div");
+      el.className = "card";
+      el.innerHTML = `
+        <div class="row">
+          <div class="info" onclick="openModal('${i.code}')">
+            <div class="code">${i.code}</div>
+            <div class="desc">${i.desc}</div>
+            <div class="pack">pack of ${i.pack}</div>
+          </div>
+          <div class="stockbox" onclick="openModal('${i.code}')">
+            <div class="stockval">${s.stock}</div>
+            <span class="status ${low ? 'low' : 'ok'}">${low ? 'Low' : 'OK'}</span>
+          </div>
+          <button class="cancel" style="width:auto; padding:4px 8px; font-size:18px;" title="Remove product" onclick="removeItem('${i.code}')">✕</button>
+        </div>`;
+      list.appendChild(el);
+    });
+}
+
+document.getElementById("toggleAddForm").addEventListener("click", () => {
+  const form = document.getElementById("addForm");
+  form.style.display = form.style.display === "none" ? "block" : "none";
+});
+document.getElementById("seedBtn").addEventListener("click", seedStarterItems);
+
+let addScanner = null;
+function stopAddScan(){
+  const reader = document.getElementById("addReader");
+  if(addScanner){
+    addScanner.stop().then(() => addScanner.clear()).catch(() => {});
+    addScanner = null;
+  }
+  reader.style.display = "none";
+  document.getElementById("addScanMsg").textContent = "";
+}
+document.getElementById("scanCodeBtn").addEventListener("click", () => {
+  const reader = document.getElementById("addReader");
+  const msg = document.getElementById("addScanMsg");
+  if(addScanner){ stopAddScan(); return; }
+  reader.style.display = "block";
+  addScanner = new Html5Qrcode("addReader");
+  Html5Qrcode.getCameras().then(cams => {
+    if(!cams || !cams.length){ msg.textContent = "No camera found on this device."; return; }
+    addScanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 200 },
+      (decodedText) => {
+        document.getElementById("newCode").value = decodedText.trim().toUpperCase();
+        msg.textContent = "Got it — check the code looks right, then fill in the rest.";
+        stopAddScan();
+      },
+      () => {}
+    ).catch(err => { msg.textContent = "Couldn't start the camera: " + err; });
+  }).catch(() => { msg.textContent = "Camera access was blocked or unavailable."; });
+});
+
+function cancelAddItem(){
+  document.getElementById("addForm").style.display = "none";
+  stopAddScan();
+  ["newCode","newDesc"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("newPack").value = 1;
+  document.getElementById("newThreshold").value = 1;
+}
+async function addItem(){
+  const code = document.getElementById("newCode").value.trim().toUpperCase();
+  const desc = document.getElementById("newDesc").value.trim();
+  const pack = parseInt(document.getElementById("newPack").value, 10) || 1;
+  const threshold = parseInt(document.getElementById("newThreshold").value, 10) || 0;
+  if(!code || !desc){
+    alert("Needs at least a code and a description.");
+    return;
+  }
+  if(ITEMS.some(i => i.code === code)){
+    alert("That code's already on the list — pick a different one.");
+    return;
+  }
+  if(!apiConfigured()){ alert("Not connected to the stock sheet yet — see the setup steps."); return; }
+  try{
+    const data = await apiPost({action:"addItem", code, desc, pack, threshold});
+    applyServerState(data);
+    cancelAddItem();
+  }catch(err){
+    alert("Couldn't save that — check your connection and try again.");
+  }
+}
+async function removeItem(code){
+  const item = ITEMS.find(i => i.code === code);
+  if(!item) return;
+  if(!confirm(`Remove ${item.code} — ${item.desc} from the list? Past activity for it stays in the log.`)) return;
+  try{
+    const data = await apiPost({action:"removeItem", code});
+    applyServerState(data);
+  }catch(err){
+    alert("Couldn't remove that — check your connection and try again.");
+  }
+}
+
+function openModal(code){
+  current = ITEMS.find(i => i.code === code);
+  qty = 1;
+  document.getElementById("mCode").textContent = current.code;
+  document.getElementById("mDesc").textContent = current.desc;
+  document.getElementById("mStock").textContent = state[current.code].stock;
+  document.getElementById("mThreshold").value = state[current.code].threshold;
+  document.getElementById("mQty").textContent = qty;
+  document.getElementById("mName").value = "";
+  renderNameChips();
+  document.getElementById("modal").classList.remove("hidden");
+}
+function closeModal(){
+  document.getElementById("modal").classList.add("hidden");
+  current = null;
+}
+function changeQty(d){
+  qty = Math.max(1, qty + d);
+  document.getElementById("mQty").textContent = qty;
+}
+async function applyAction(kind){
+  if(!current) return;
+  const name = document.getElementById("mName").value.trim();
+  if(!name){
+    alert("Add a name before logging this — that's the whole point.");
+    return;
+  }
+  if(!apiConfigured()){ alert("Not connected to the stock sheet yet — see the setup steps."); return; }
+  const threshold = parseInt(document.getElementById("mThreshold").value, 10) || 0;
+
+  document.querySelectorAll(".actionrow .btn").forEach(b => b.disabled = true);
+  try{
+    const data = await apiPost({action:"move", code: current.code, kind, qty, name, threshold});
+    applyServerState(data);
+    closeModal();
+  }catch(err){
+    alert("Couldn't save that — check your connection and try again. Nothing's been recorded.");
+  }finally{
+    document.querySelectorAll(".actionrow .btn").forEach(b => b.disabled = false);
+  }
+}
+
+function fmtTime(d){
+  return d.toLocaleDateString(undefined,{day:"2-digit",month:"short"}) + " · " +
+         d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
+}
+
+function renderLog(filter=""){
+  const list = document.getElementById("logList");
+  if(!list) return;
+  const f = filter.trim().toLowerCase();
+  const rows = LOG.filter(e => !f || e.name.toLowerCase().includes(f) ||
+                                 e.code.toLowerCase().includes(f) ||
+                                 e.desc.toLowerCase().includes(f));
+  if(!rows.length){
+    list.innerHTML = '<div class="empty">No activity logged yet — every Take or Replenish will show up here.</div>';
+    return;
+  }
+  list.innerHTML = rows.map(e => `
+    <div class="logentry act-${e.action}">
+      <div class="ltop"><span class="lwho">${e.name}</span><span>${e.action === 'take' ? '−' : '+'}${e.qty}</span></div>
+      <div class="lwhat">${e.action === 'take' ? 'Took' : 'Replenished'} ${e.code} — ${e.desc} · now ${e.resulting}</div>
+      <div class="ltime">${fmtTime(e.ts)}</div>
+    </div>`).join("");
+}
+
+document.getElementById("search").addEventListener("input", e => renderList(e.target.value));
+document.getElementById("logSearch").addEventListener("input", e => renderLog(e.target.value));
+
+// --- view switching ---
+document.querySelectorAll("nav button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    ["dashboard","scan","log","labels"].forEach(v => {
+      document.getElementById("view-"+v).style.display = (v === btn.dataset.view) ? "block" : "none";
+    });
+    if(btn.dataset.view === "labels") renderLabels();
+    if(btn.dataset.view === "log") renderLog(document.getElementById("logSearch").value);
+  });
+});
+
+// --- scanning ---
+document.getElementById("startScan").addEventListener("click", () => {
+  const msg = document.getElementById("scanMsg");
+  if(scanner){ return; }
+  scanner = new Html5Qrcode("reader");
+  Html5Qrcode.getCameras().then(cams => {
+    if(!cams || !cams.length){ msg.textContent = "No camera found on this device."; return; }
+    scanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 220 },
+      (decodedText) => {
+        const match = ITEMS.find(i => i.code === decodedText.trim());
+        if(match){
+          scanner.pause();
+          openModal(match.code);
+          msg.textContent = "Scanned " + match.code + " — pick Take or Replenish.";
+        } else {
+          msg.textContent = "Scanned \"" + decodedText + "\" — no matching item code.";
+        }
+      },
+      () => {}
+    ).catch(err => { msg.textContent = "Couldn't start the camera: " + err; });
+  }).catch(err => { msg.textContent = "Camera access was blocked or unavailable."; });
+});
+
+// resume scanning after closing the modal from a scan
+const originalClose = closeModal;
+closeModal = function(){
+  originalClose();
+  if(scanner){ try{ scanner.resume(); }catch(e){} }
+};
+
+// --- printable labels ---
+function renderLabels(){
+  const grid = document.getElementById("labelsGrid");
+  if(grid.dataset.built) return;
+  grid.dataset.built = "1";
+  ITEMS.forEach(i => {
+    const cell = document.createElement("div");
+    cell.className = "label";
+    const qrId = "qr_" + i.code;
+    cell.innerHTML = `
+      <div class="qrcanvas" id="${qrId}"></div>
+      <div class="lcode">${i.code}</div>
+      <div class="ldesc">${i.desc}</div>`;
+    grid.appendChild(cell);
+    new QRCode(document.getElementById(qrId), { text: i.code, width:90, height:90 });
+  });
+}
+
+loadState();
+</script>
+
+</body>
+</html>
